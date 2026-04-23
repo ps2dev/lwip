@@ -273,7 +273,12 @@ pbuf_alloc(pbuf_layer layer, u16_t length, pbuf_type type)
       break;
     }
     case PBUF_RAM: {
+#if (!defined(_IOP) && !defined(_EE))
       mem_size_t payload_len = (mem_size_t)(LWIP_MEM_ALIGN_SIZE(offset) + LWIP_MEM_ALIGN_SIZE(length));
+#else
+      // Do not align this, otherwise the final address will not be aligned.
+      mem_size_t payload_len = (mem_size_t)(offset + LWIP_MEM_ALIGN_SIZE(length));
+#endif
       mem_size_t alloc_len = (mem_size_t)(LWIP_MEM_ALIGN_SIZE(SIZEOF_STRUCT_PBUF) + payload_len);
 
       /* bug #50040: Check for integer overflow when calculating alloc_len */
@@ -287,10 +292,16 @@ pbuf_alloc(pbuf_layer layer, u16_t length, pbuf_type type)
       if (p == NULL) {
         return NULL;
       }
+#if (!defined(_IOP) && !defined(_EE))
       pbuf_init_alloced_pbuf(p, LWIP_MEM_ALIGN((void *)((u8_t *)p + SIZEOF_STRUCT_PBUF + offset)),
                              length, length, type, 0);
       LWIP_ASSERT("pbuf_alloc: pbuf->payload properly aligned",
                   ((mem_ptr_t)p->payload % MEM_ALIGNMENT) == 0);
+#else
+      // Do not align this, otherwise the final address will not be aligned.
+      pbuf_init_alloced_pbuf(p, (void *)((u8_t *)p + SIZEOF_STRUCT_PBUF + offset),
+                             length, length, type, 0);
+#endif
       break;
     }
     default:
@@ -375,7 +386,12 @@ pbuf_alloced_custom(pbuf_layer l, u16_t length, pbuf_type type, struct pbuf_cust
   }
 
   if (payload_mem != NULL) {
+#if (!defined(_IOP) && !defined(_EE))
     payload = (u8_t *)payload_mem + LWIP_MEM_ALIGN_SIZE(offset);
+#else
+    // Do not align this, otherwise the final address will not be aligned.
+    payload = (u8_t *)payload_mem + offset;
+#endif
   } else {
     payload = NULL;
   }
